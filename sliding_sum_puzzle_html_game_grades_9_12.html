@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sliding Sum Lab — Student-Calculated Convolution (Grades 9–12)</title>
+  <style>
+    :root{
+      --bg:#0b0f13; --panel:#11161d; --ink:#e7edf5; --muted:#9bb0c9; --accent:#7cd2ff; --good:#67f0a7; --bad:#ff7d7d; --warn:#ffd166;
+      --card:#141a22; --grid:#1f2833; --box:#18212b; --hi:#203040;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,#0a0e12 0%,#0c1117 100%);color:var(--ink);font:16px/1.35 system-ui,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
+    .wrap{max-width:1200px;margin:28px auto;padding:16px}
+    h1{font-size:26px;margin:0 0 8px}
+    p.lead{color:var(--muted);margin:4px 0 16px}
+
+    .grid{display:grid;grid-template-columns:1.3fr .9fr;gap:16px}
+    .card{background:var(--card);border:1px solid #1b2430;border-radius:16px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,.35)}
+    h2{font-size:18px;margin:0 0 8px}
+
+    .seq{display:grid;grid-auto-flow:column;gap:6px;align-items:end;margin:8px 0}
+    .cell{width:50px;min-height:48px;background:var(--box);border:1px solid #223042;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;position:relative}
+    .cell small{position:absolute;top:4px;left:8px;color:#7a93b2;font-weight:500;font-size:11px}
+    .cell.dim{opacity:.35}
+    .cell.hi{outline:2px solid var(--accent);box-shadow:0 0 0 4px rgba(124,210,255,.15) inset}
+
+    .axis{display:grid;grid-auto-flow:column;gap:6px;color:#8aa2be;font-size:12px;margin-top:4px}
+    .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0 6px}
+    button{background:#182534;color:var(--ink);border:1px solid #223042;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer;transition:.2s}
+    button:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.25)}
+    button.primary{background:linear-gradient(180deg,#1c3147,#17283a);border-color:#29445f}
+    button.ghost{background:transparent;border-color:#2a3a50;color:#a9c1dd}
+    .pill{display:inline-flex;gap:8px;align-items:center;background:#12202f;border:1px solid #243143;border-radius:999px;padding:8px 12px;color:#cfe6ff;font-weight:700}
+    .panel{background:var(--panel);border:1px dashed #243143;border-radius:12px;padding:12px;margin-top:10px}
+
+    .resRow{display:grid;grid-auto-flow:column;gap:6px;align-items:center;margin-top:8px}
+    .resBox{width:60px}
+    .resBox input{width:100%;padding:10px;border-radius:10px;border:1px solid #243143;background:#0e1721;color:#e6f0ff;font-weight:800;text-align:center}
+    .resBox.correct input{border-color:var(--good);box-shadow:0 0 0 3px rgba(103,240,167,.2)}
+    .resBox.wrong input{border-color:var(--bad);box-shadow:0 0 0 3px rgba(255,125,125,.2)}
+    .idx{font-size:11px;color:#7ea1c7;text-align:center;margin-top:4px}
+
+    .hint{color:#9fb6cf;font-size:14px}
+    .footer{margin-top:10px;color:#86a2c2;font-size:13px}
+
+    canvas{width:100%;height:260px;background:#0b121a;border:1px solid #1e2a39;border-radius:12px}
+    .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;color:#cfe6ff}
+    .chip{display:inline-flex;gap:6px;align-items:center}
+    .dot{width:14px;height:14px;border-radius:4px}
+    .dot.f{background:#61d2b7}
+    .dot.g{background:#7cd2ff}
+    .dot.h{background:#ffd166}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Sliding Sum Lab <span style="font-weight:400;color:#9bb0c9">— you compute, then we draw</span></h1>
+    <p class="lead">Task: for each position <b>n</b>, slide the blue sequence <b>g</b> across the green sequence <b>f</b>, multiply overlapping entries <i>by yourself</i>, add them up, and type the sum for <b>result[n]</b>. When you finish, plot all three on the same graph.</p>
+
+    <div class="grid">
+      <section class="card">
+        <h2>1) Explore alignment and compute the sum at position <span id="posLabel">0</span></h2>
+        <div class="controls">
+          <label>Position n: <input id="shift" type="range" min="0" max="5" value="0"/></label>
+          <button class="ghost" id="lvl1">Level 1</button>
+          <button class="ghost" id="lvl2">Level 2</button>
+          <button class="ghost" id="lvl3">Level 3</button>
+          <button class="ghost" id="randBtn">Random</button>
+          <label style="margin-left:auto;display:flex;gap:8px;align-items:center"><input type="checkbox" id="showPairs" checked> Show index pairs only (no products)</label>
+        </div>
+
+        <div id="seqArea"></div>
+        <div class="panel">
+          <div id="pairs" class="hint"></div>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h2>2) Enter your results for result[n]</h2>
+        <div id="resInputs" class="resRow"></div>
+        <div class="controls">
+          <button id="checkBtn">Check</button>
+          <button id="revealBtn" class="ghost">Reveal answers</button>
+          <button id="plotBtn" class="primary" title="Draw f, g, and your result on one graph">Plot on same graph</button>
+        </div>
+        <div class="hint">Formula reference (don’t auto-calc): <b>result[n] = Σ<sub>k</sub> f[k] · g[n−k]</b>. Out-of-range entries count as 0.</div>
+      </aside>
+    </div>
+
+    <section class="card" style="margin-top:16px">
+      <h2>3) Visualization — all on one graph</h2>
+      <canvas id="chart" width="1100" height="280"></canvas>
+      <div class="legend">
+        <span class="chip"><span class="dot f"></span> f (bars)</span>
+        <span class="chip"><span class="dot g"></span> g (bars)</span>
+        <span class="chip"><span class="dot h"></span> your result (polyline)</span>
+      </div>
+      <div class="footer">Tip: negative values draw below the axis. Try Level 3 to see cancellation.</div>
+    </section>
+  </div>
+
+<script>
+// ===== State =====
+const S={f:[1,2,1], g:[1,1], n:0, nMax:0, answers:[], reveal:false};
+let inputs=[]; // input boxes by n
+
+function setLevel(f,g){
+  S.f=[...f]; S.g=[...g]; S.n=0; S.nMax=(f.length-1)+(g.length-1); S.reveal=false;
+  S.answers = computeAll();
+  renderAll();
+}
+
+// Compute (hidden) correct answers for checking/plotting only.
+function computeAt(n){
+  let sum=0; for(let k=0;k<S.f.length;k++){
+    const j=n-k; const a=S.f[k]; const b=(j>=0 && j<S.g.length)? S.g[j]:0; sum += a*b;
+  } return sum;
+}
+function computeAll(){ const arr=[]; for(let n=0;n<=S.nMax;n++){arr[n]=computeAt(n)} return arr; }
+
+// ===== Render sequences and alignment (no sums shown) =====
+function renderSequences(){
+  const mount=document.getElementById('seqArea'); mount.innerHTML='';
+  const {f,g,n}=S; const W = Math.max(f.length,g.length) + f.length + g.length; // generous pad
+  const base = Math.floor((W - f.length)/2);
+
+  const rowTitle=(t)=>{const d=document.createElement('div'); d.textContent=t; d.style.marginTop='6px'; return d; };
+  const mkRow=(len,fill)=>{ const r=document.createElement('div'); r.className='seq'; for(let i=0;i<len;i++){ const c=document.createElement('div'); c.className='cell'; fill(c,i); r.appendChild(c);} return r; };
+
+  // f row
+  const fRow = mkRow(W,(c,i)=>{ const idx=i-base; if(0<=idx && idx<f.length){ c.textContent=f[idx]; const s=document.createElement('small'); s.textContent='f['+idx+']'; c.appendChild(s);} else { c.classList.add('dim'); }});
+  // g row (shifted to n)
+  const gOffset = base + n - (g.length-1);
+  const gRow = mkRow(W,(c,i)=>{ const j=i-gOffset; if(0<=j && j<g.length){ c.textContent=g[j]; const s=document.createElement('small'); s.textContent='g['+j+']'; c.appendChild(s);
+      // highlight overlap with f
+      const k=i-base; if(0<=k && k<f.length){ c.classList.add('hi'); }
+    } else { c.classList.add('dim'); }
+  });
+
+  mount.appendChild(rowTitle('Top row: f (fixed)')); mount.appendChild(fRow);
+  mount.appendChild(rowTitle('Bottom row: g (slid to n = '+n+')')); mount.appendChild(gRow);
+
+  // Index pairs (no arithmetic)
+  const showPairs=document.getElementById('showPairs').checked;
+  const P=document.getElementById('pairs');
+  if(showPairs){
+    const pairs=[]; for(let k=0;k<f.length;k++){ const j=n-k; const inG=(j>=0 && j<g.length); if(inG){ pairs.push(`[f[${k}] , g[${j}]] = [${f[k]} , ${g[j]}]`);} }
+    P.textContent = pairs.length? `Overlapping pairs at n = ${n}:  `+pairs.join('   |   '): 'No overlap at this n';
+  } else { P.textContent=''; }
+}
+
+function renderInputs(){
+  const mount=document.getElementById('resInputs'); mount.innerHTML=''; inputs=[];
+  for(let n=0;n<=S.nMax;n++){
+    const box=document.createElement('div'); box.className='resBox';
+    const inp=document.createElement('input'); inp.type='number'; inp.placeholder='?'; inp.dataset.n=n;
+    if(S.reveal){ inp.value = S.answers[n]; }
+    box.appendChild(inp); box.appendChild(Object.assign(document.createElement('div'),{className:'idx',textContent:'n='+n}));
+    mount.appendChild(box); inputs.push(inp);
+  }
+}
+
+function renderAll(){
+  document.getElementById('shift').min=0; document.getElementById('shift').max=S.nMax; document.getElementById('shift').value=S.n;
+  document.getElementById('posLabel').textContent=S.n;
+  renderSequences(); renderInputs(); clearMarks(); drawChart();
+}
+
+function clearMarks(){ document.querySelectorAll('.resBox').forEach(b=>b.classList.remove('correct','wrong')); }
+
+// ===== Chart (bars for f & g, polyline for user result) =====
+function drawChart(){
+  const cv=document.getElementById('chart'); const ctx=cv.getContext('2d');
+  const W=cv.width, H=cv.height; ctx.clearRect(0,0,W,H);
+  // axes
+  ctx.fillStyle='#0b121a'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#223349'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(40,H-30); ctx.lineTo(W-10,H-30); ctx.moveTo(40,20); ctx.lineTo(40,H-30); ctx.stroke();
+  // gather ranges
+  const allX = [...Array(Math.max(S.f.length,S.g.length,S.nMax+1)).keys()];
+  const vals=[...S.f,...S.g,...getUserResult()].map(v=>Number(v)||0);
+  const vmax=Math.max(1, ...vals.map(v=>Math.abs(v)));
+  const xStep=(W-80)/Math.max(1, allX.length-1); const yScale=(H-70)/(2*vmax);
+  const y0 = (H-30)- (0+vmax)*yScale; // zero level
+  // zero line
+  ctx.strokeStyle='#29465f'; ctx.beginPath(); ctx.moveTo(40,y0); ctx.lineTo(W-10,y0); ctx.stroke();
+  // draw bars helper
+  function bar(x,val,color){ const bw=Math.max(8,xStep*0.35); const cx=40+x*xStep; const y=cx; const v=Number(val)||0; const top=y0 - v*yScale; const base=y0; ctx.fillStyle=color; ctx.fillRect(cx-bw/2, Math.min(top,base), bw, Math.abs(top-base)); }
+  // f bars (green)
+  for(let x=0;x<S.f.length;x++) bar(x,S.f[x],'#61d2b7');
+  // g bars (blue)
+  for(let x=0;x<S.g.length;x++) bar(x,S.g[x],'#7cd2ff');
+  // user result polyline (yellow)
+  const R=getUserResult();
+  ctx.strokeStyle='#ffd166'; ctx.lineWidth=2.2; ctx.beginPath();
+  for(let x=0;x<R.length;x++){
+    const cx=40+x*xStep; const y = y0 - (Number(R[x])||0)*yScale; if(x===0) ctx.moveTo(cx,y); else ctx.lineTo(cx,y);
+  }
+  ctx.stroke();
+}
+
+function getUserResult(){ return inputs.map(inp=> inp.value===''? 0 : Number(inp.value)); }
+
+// ===== Events =====
+
+document.getElementById('shift').addEventListener('input',e=>{ S.n=+e.target.value; document.getElementById('posLabel').textContent=S.n; renderSequences(); });
+
+document.getElementById('checkBtn').addEventListener('click',()=>{
+  clearMarks(); let any=false;
+  inputs.forEach((inp,i)=>{
+    if(inp.value==='') return; any=true; const box=inp.parentElement; const v=Number(inp.value); if(v===S.answers[i]) box.classList.add('correct'); else box.classList.add('wrong');
+  });
+  if(!any) alert('Enter at least one value before checking.');
+  drawChart();
+});
+
+document.getElementById('plotBtn').addEventListener('click',()=>{ drawChart(); });
+
+document.getElementById('revealBtn').addEventListener('click',()=>{ S.reveal=!S.reveal; renderInputs(); });
+
+document.getElementById('showPairs').addEventListener('change',renderSequences);
+
+// Levels
+function level1(){ setLevel([1,2,1],[1,1]); }
+function level2(){ setLevel([0,3,0,2],[2,0,1]); }
+function level3(){ setLevel([1,-1,2],[2,-2]); }
+function randomPuzzle(){
+  const lenF = 3 + Math.floor(Math.random()*3); // 3..5
+  const lenG = 2 + Math.floor(Math.random()*3); // 2..4
+  const pick = ()=> (Math.random()<.25? 0 : (Math.random()<.6? (1+Math.floor(Math.random()*3)) : (-1-Math.floor(Math.random()*2))));
+  const f=Array(lenF).fill(0).map(pick);
+  const g=Array(lenG).fill(0).map(pick);
+  setLevel(f,g);
+}
+
+document.getElementById('lvl1').addEventListener('click',level1);
+document.getElementById('lvl2').addEventListener('click',level2);
+document.getElementById('lvl3').addEventListener('click',level3);
+document.getElementById('randBtn').addEventListener('click',randomPuzzle);
+
+// init
+level1();
+</script>
+</body>
+</html>
